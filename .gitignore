@@ -1,0 +1,7 @@
+*.class
+/lowered.hnir
+*~
+/project/project/target
+/project/target/
+/target/
+.stainless-cache/
