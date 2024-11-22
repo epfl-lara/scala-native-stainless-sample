@@ -20,5 +20,6 @@ object Main {
     println(Left[Int,Int](42))
     println(fill(10)(7))
     println(l1)
+    ExplicitMemory.test
   }
 }
