@@ -1,9 +1,7 @@
-/* Copyright 2009-2019 EPFL, Lausanne */
+/* Copyright 2009-2021 EPFL, Lausanne */
 
 package stainless
 package lang
-
-import scala.language.implicitConversions
 
 import annotation._
 import stainless.lang.StaticChecks._
@@ -32,7 +30,7 @@ case class ~>>[A, B](private val f: A ~> B, post: B => Boolean) {
   def apply(a: A): B = {
     require(pre(a))
     f(a)
-  } ensuring(post)
+ }.ensuring(post)
 }
 
 @library

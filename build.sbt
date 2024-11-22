@@ -1,12 +1,17 @@
-scalaVersion := "2.11.12"
-
-// Set to false or remove if you want to show stubs as linking errors
-nativeLinkStubs := true
-
+scalaVersion := "3.5.2" 
 
 enablePlugins(ScalaNativePlugin)
 
-nativeMode := "release-fast"
+// set to Debug for compilation details (Info is default)
+logLevel := Level.Info
 
-nativeGC := "none"
-nativeLTO := "thin"
+// import to add Scala Native options
+import scala.scalanative.build._
+
+// defaults set with common options shown
+nativeConfig ~= { c =>
+  c.withLTO(LTO.thin) // thin
+    .withMode(Mode.releaseSize) // releaseFast
+    .withGC(GC.immix) // commix
+    .withMultithreading(false)
+}

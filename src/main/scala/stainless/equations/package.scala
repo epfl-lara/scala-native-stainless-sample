@@ -1,4 +1,4 @@
-/* Copyright 2009-2019 EPFL, Lausanne */
+/* Copyright 2009-2021 EPFL, Lausanne */
 
 package stainless
 
@@ -79,6 +79,6 @@ package object equations {
     @inline
     def qed: Unit = {
       ()
-    } ensuring(_ => x() == y())
+   }.ensuring(_ => x() == y())
   }
 }

@@ -1,8 +1,6 @@
-/* Copyright 2009-2019 EPFL, Lausanne */
+/* Copyright 2009-2021 EPFL, Lausanne */
 
 package stainless.lang
-
-import scala.language.implicitConversions
 
 import stainless.annotation._
 import stainless.lang.StaticChecks._
@@ -18,19 +16,22 @@ sealed abstract class Option[T] {
     }
   }
 
-  def getOrElse(default: =>T) = this match {
+  def getOrElse(default: => T) = this match {
     case Some(v) => v
     case None()  => default
   }
 
-  def orElse(or: => Option[T]) = { this match {
+  def orElse(or: => Option[T]): Option[T] = { this match {
     case Some(v) => this
     case None() => or
-  }} ensuring {
+  }}.ensuring {
     _.isDefined == this.isDefined || or.isDefined
   }
 
-  def isEmpty = this == None[T]()
+  def isEmpty = this match {
+    case Some(_) => false
+    case None() => true
+  }
 
   def nonEmpty  = !isEmpty
 
@@ -39,26 +40,26 @@ sealed abstract class Option[T] {
 
   // Higher-order API
   @isabelle.function(term = "%x f. Option.map_option f x")
-  def map[R](f: T => R) = { this match {
+  def map[R](f: T => R): Option[R] = { this match {
     case None() => None[R]()
     case Some(x) => Some(f(x))
-  }} ensuring { _.isDefined == this.isDefined }
+  }}.ensuring { _.isDefined == this.isDefined }
 
   @isabelle.function(term = "Option.bind")
-  def flatMap[R](f: T => Option[R]) = this match {
+  def flatMap[R](f: T => Option[R]): Option[R] = this match {
     case None() => None[R]()
     case Some(x) => f(x)
   }
 
-  def filter(p: T => Boolean) = this match {
+  def filter(p: T => Boolean): Option[T] = this match {
     case Some(x) if p(x) => Some(x)
     case _ => None[T]()
   }
 
-  def withFilter(p: T => Boolean) = filter(p)
+  def withFilter(p: T => Boolean): Option[T] = filter(p)
 
   def forall(p: T => Boolean) = this match {
-    case Some(x) if !p(x) => false 
+    case Some(x) if !p(x) => false
     case _ => true
   }
 
@@ -71,7 +72,7 @@ sealed abstract class Option[T] {
     case Some(x) => List(x)
   }
   */
-  
+
   def toSet: Set[T] = this match {
     case None() => Set[T]()
     case Some(x) => Set(x)
@@ -91,7 +92,7 @@ object Option {
   @library @extern @pure
   def apply[A](x: A): Option[A] = {
     if (x == null) None[A]() else Some[A](x)
-  } ensuring { res =>
+ }.ensuring { res =>
     res == None[A]() || res == Some[A](x)
   }
 }

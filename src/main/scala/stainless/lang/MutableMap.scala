@@ -1,9 +1,8 @@
-/* Copyright 2009-2019 EPFL, Lausanne */
+/* Copyright 2009-2021 EPFL, Lausanne */
 
 package stainless.lang
 
 import stainless.annotation._
-import stainless.lang.StaticChecks._
 
 object MutableMap {
   @extern @library
@@ -31,7 +30,7 @@ case class MutableMap[A, @mutable B] (theMap: scala.collection.mutable.Map[A,B],
   // To avoid the creation of aliases on the elements of `B`,
   // `updated` and `duplicate` can only be used when `B` is an immutable type
   def updated(k: A, v: B) = {
-    MutableMap(theMap.updated(k, v), default)
+    MutableMap(theMap.clone() += ((k, v)), default)
   }
 
   def duplicate() = {

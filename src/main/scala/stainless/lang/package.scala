@@ -1,17 +1,16 @@
-/* Copyright 2009-2019 EPFL, Lausanne */
+/* Copyright 2009-2021 EPFL, Lausanne */
 
 package stainless
 
 import stainless.annotation._
 import stainless.lang.StaticChecks._
-
-import scala.language.implicitConversions
+import stainless.lang.Cell
 
 package object lang {
-  import stainless.proof._
 
+  // TODO: should be renamed to ghostExpr
   @library
-  def ghost[A](@ghost value: A): Unit = ()
+  def ghost[A](@ghost value: => A): Unit = ()
 
   @library
   def indexedAt[T](n: BigInt, t: T): T = (??? : T)
@@ -20,25 +19,50 @@ package object lang {
   implicit class BooleanDecorations(val underlying: Boolean) {
     def holds : Boolean = {
       underlying
-    } ensuring {
+   }.ensuring {
       (res: Boolean) => res
     }
 
     def holds(becauseOfThat: Boolean) = {
       underlying
-    } ensuring {
+   }.ensuring {
       (res: Boolean) => becauseOfThat && res
     }
 
     def ==>(that: => Boolean): Boolean = {
       if (underlying) that else true
     }
+
+    // Use this "and" operator instead of `&&` when you want verification conditions to be split
+    def &&&(that: => Boolean): Boolean = {
+      if (underlying) that else false
+    }
   }
 
   @library
   abstract class Exception extends Throwable
 
-  @ignore
+  @library
+  @extern
+  def Exception(msg: String): Exception = new Exception{}
+
+  @library
+  sealed abstract class Try[T]{
+    def map[U](f: T => U): Try[U] = this match {
+      case Success(t) => Success(f(t))
+      case Failure(exc: Exception) => Failure(exc)
+    }
+
+    inline def flatMap[U](f: T => Try[U]): Try[U] = this match {
+      case Success(t) => f(t)
+      case Failure(exc: Exception) => Failure(exc)
+    }
+  }
+  @library case class Success[T](t: T) extends Try[T]
+  @library case class Failure[T](exc: Exception) extends Try[T]
+
+  /* // This would be a widely applicable implicit
+  @ignore 
   implicit class Throwing[T](underlying: => T) {
     def throwing(pred: Exception => Boolean): T = try {
       underlying
@@ -48,6 +72,7 @@ package object lang {
         throw e
     }
   }
+   */
 
   @inline @library def because(b: Boolean) = b
 
@@ -75,6 +100,14 @@ package object lang {
       require(x)
       u
     }
+
+    def noReturnInvariant(x: Boolean): Unit = {
+      require(x)
+      u
+    }
+
+    def inline: Unit = { }
+    def opaque: Unit = { }
   }
 
   @ignore
@@ -86,20 +119,15 @@ package object lang {
   @ignore @ghost
   def snapshot[T](value: T): T = value
 
+  /** @note for internal and testing use only */
+  @ignore
+  def freshCopy[T](value: T): T = (??? : T)
+
   @library
   @partialEval
   def partialEval[A](x: A): A = x
 
-  @library
-  implicit class SpecsDecorations[A](val underlying: A) {
-    @ignore
-    def computes(target: A) = {
-      underlying
-    } ensuring {
-      res => res == target
-    }
-  }
-
+  // TODO: put into a separate object
   @ignore
   implicit class Passes[A, B](io: (A, B)) {
     val (in, out) = io
@@ -145,4 +173,85 @@ package object lang {
   def print(x: String): Unit = {
     scala.Predef.print(x)
   }
+
+  @library
+  def specialize[T](call: T): T = call
+
+  @library
+  def inline[T](call: T): T = call
+
+  // typically used when `call` invokes an `opaque` function
+  // this adds an equality between the call, and the inlined call
+  @library
+  def unfold[T](call: T): Unit = ()
+
+  @ignore @library
+  implicit class ArrayUpdating[T](a: Array[T]) {
+    def updated(index: Int, value: T): Array[T] = {
+      val res = a.clone
+      res(index) = value
+      res
+    }
+  }
+
+  @ignore @library
+  def swap[@mutable T](a1: Array[T], i1: Int, a2: Array[T], i2: Int): Unit = {
+    require(
+      0 <= i1 && i1 < a1.length &&
+      0 <= i2 && i2 < a2.length
+    )
+    val t = a1(i1)
+    a1(i1) = a2(i2)
+    a2(i2) = t
+  }
+
+  @ignore @library
+    def swap[@mutable T](c1: Cell[T], c2: Cell[T]): Unit = {
+      val t = c2.v
+      c2.v = c1.v
+      c1.v = t
+  }
+
+  // This --full-imperative stuff should perhaps move to a separate object.
+
+  @extern @library @mutable @anyHeapRef
+  trait AnyHeapRef {
+    @refEq
+    def refEq(that: AnyHeapRef): Boolean = true
+  }
+
+  @library
+  implicit class HeapRefSetDecorations[T <: AnyHeapRef](val objs: Set[T]) {
+    @extern @library
+    def asRefs: Set[AnyHeapRef] = ???
+  }
+
+  @ignore
+  def reads(@ghost objs: Set[AnyHeapRef]): Unit = ()
+
+  @ignore
+  def modifies(@ghost objs: Set[AnyHeapRef]): Unit = ()
+
+  @extern @library
+  def objectId[T <: AnyHeapRef](x: T): BigInt = ???
+
+  @library
+  case class Heap(/*opaque*/) {
+    // Evaluates a value expression in the given heap.
+    // Caveat: Reads and modifies clauses are currently unchecked in the value expression.
+    @extern @library
+    def eval[T](value: T): T = ???
+  }
+
+  object Heap {
+    // Returns a snapshot of the current heap.
+    @extern @library
+    def get: Heap = ???
+
+    // Returns whether two heaps are equal on all the given objects.
+    @extern @library
+    def unchanged(objs: Set[AnyHeapRef], h0: Heap, h1: Heap): Boolean =
+      /* objs.mapMerge(h1, h0) == h0 */ ???
+  }
+
 }
